@@ -1,0 +1,21 @@
+[project]
+name = "catman"
+version = "0.1.0"
+description = "A CLI Manager for Cataclysm: DDA, Bright Nights, and The Last Generation"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [
+    { name = "Your Name", email = "you@example.com" }
+]
+dependencies = [
+    "httpx>=0.28.1",
+    "rich>=14.2.0",
+    "typer>=0.21.1",
+]
+
+[project.scripts]
+catman = "catman.main:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
