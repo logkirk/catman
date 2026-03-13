@@ -31,22 +31,39 @@ class CatmanShell(cmd2.Cmd):
         super().__init__(*args, **kwargs)
         self.paths = AppPaths()
         self.config = Config.load(self.paths)
-        self.paths.ensure_dirs(self.config.active_variant)
+        variant = self.config.active_variant
+        channel = self.config.get_channel(variant)
+        # Migrate legacy userdata/ to channel-specific directory
+        if self.paths.migrate_legacy_userdata(variant, channel):
+            console.print(
+                f"[dim]Migrated user data to {channel.value} channel.[/dim]"
+            )
+        self.paths.ensure_dirs(variant, channel)
         self._update_prompt()
         self.hidden_commands.extend(
             ["alias", "macro", "run_script", "run_pyscript", "shortcuts", "edit"]
         )
 
     def _update_prompt(self):
-        self.prompt = f"catman [{self.config.active_variant.short_name}]> "
+        v = self.config.active_variant
+        ch = self.config.get_channel(v)
+        build = self.config.active_builds.get(v.value)
+        parts = [v.short_name, ch.value]
+        if build:
+            parts.append(build)
+        self.prompt = f"catman [{'/'.join(parts)}]> "
 
     @property
     def _variant(self) -> GameVariant:
         return self.config.active_variant
 
     @property
+    def _channel(self) -> ReleaseChannel:
+        return self.config.get_channel(self._variant)
+
+    @property
     def _userdata(self) -> Path:
-        return self.paths.userdata_dir(self._variant)
+        return self.paths.userdata_dir(self._variant, self._channel)
 
     @property
     def _builds_dir(self) -> Path:
@@ -56,6 +73,50 @@ class CatmanShell(cmd2.Cmd):
     def _backups_dir(self) -> Path:
         return self.paths.backups_dir(self._variant)
 
+    # ── helpers ─────────────────────────────────────────────────────────
+
+    @staticmethod
+    def _has_user_content(path: Path) -> bool:
+        """Check if a userdata directory has any actual files."""
+        if not path.exists():
+            return False
+        return any(f.is_file() for f in path.rglob("*"))
+
+    def _handle_channel_switch(self, new_channel: ReleaseChannel) -> None:
+        """Handle switching to a new channel, prompting to copy data if needed."""
+        variant = self._variant
+        old_channel = self.config.get_channel(variant)
+        new_userdata = self.paths.userdata_dir(variant, new_channel)
+
+        if new_channel != old_channel:
+            new_has_data = self._has_user_content(new_userdata)
+            if not new_has_data:
+                old_userdata = self.paths.userdata_dir(variant, old_channel)
+                if self._has_user_content(old_userdata):
+                    console.print(
+                        f"\n[yellow]Switching to {new_channel.value} channel.[/yellow]"
+                    )
+                    console.print(
+                        "Config files may not be compatible between game versions."
+                    )
+                    idx = select_one(
+                        [
+                            f"Copy data from {old_channel.value}",
+                            "Start fresh",
+                        ],
+                        title="User data for new channel",
+                    )
+                    if idx == 0:
+                        shutil.copytree(old_userdata, new_userdata, dirs_exist_ok=True)
+                        console.print(
+                            f"[green]Copied user data from {old_channel.value}.[/green]"
+                        )
+
+        # Always explicitly record the channel
+        self.config.set_channel(variant, new_channel)
+        self.paths.ensure_dirs(variant, new_channel)
+        self._update_prompt()
+
     # ── variant ─────────────────────────────────────────────────────────
 
     def do_variant(self, _statement):
@@ -64,17 +125,23 @@ class CatmanShell(cmd2.Cmd):
         idx = select_one(choices, title="Select game variant")
         if idx is not None:
             self.config.active_variant = list(GameVariant)[idx]
+            variant = self.config.active_variant
+            channel = self.config.get_channel(variant)
+            # Migrate legacy userdata if switching to a variant for the first time
+            self.paths.migrate_legacy_userdata(variant, channel)
+            self.paths.ensure_dirs(variant, channel)
             self.config.save(self.paths)
-            self.paths.ensure_dirs(self.config.active_variant)
             self._update_prompt()
-            console.print(f"Switched to {self.config.active_variant.display_name}")
+            console.print(f"Switched to {variant.display_name}")
 
     # ── status ──────────────────────────────────────────────────────────
 
     def do_status(self, _statement):
-        """Show current variant, build, and save info."""
+        """Show current variant, channel, build, and save info."""
         v = self._variant
+        ch = self._channel
         console.print(f"[bold]Variant:[/bold]  {v.display_name}")
+        console.print(f"[bold]Channel:[/bold]  {ch.value}")
 
         active_build = self.config.active_builds.get(v.value)
         console.print(
@@ -185,14 +252,18 @@ class CatmanShell(cmd2.Cmd):
         finally:
             archive_path.unlink(missing_ok=True)
 
+        self.config.register_build(self._variant, build_name, channel)
+        self._handle_channel_switch(channel)
         self.config.active_builds[self._variant.value] = build_name
         self.config.save(self.paths)
+        self._update_prompt()
         console.print(f"[green]Build {build_name} installed and set as active.[/green]")
 
     # ── builds ──────────────────────────────────────────────────────────
 
     def do_builds(self, _statement):
         """List and manage downloaded builds."""
+        variant = self._variant
         if not self._builds_dir.exists():
             console.print("No builds yet. Use 'download' to get started.")
             return
@@ -204,8 +275,16 @@ class CatmanShell(cmd2.Cmd):
             console.print("No builds found.")
             return
 
-        active = self.config.active_builds.get(self._variant.value)
-        labels = [f"{b}  [active]" if b == active else b for b in builds]
+        active = self.config.active_builds.get(variant.value)
+        labels = []
+        for b in builds:
+            label = b
+            ch = self.config.get_build_channel(variant, b)
+            if ch:
+                label += f"  [{ch.value}]"
+            if b == active:
+                label += "  [active]"
+            labels.append(label)
 
         action_idx = select_one(
             ["Set active build", "Delete a build", "Back"],
@@ -217,16 +296,22 @@ class CatmanShell(cmd2.Cmd):
         if action_idx == 0:
             idx = select_one(labels, title="Select build to activate")
             if idx is not None:
-                self.config.active_builds[self._variant.value] = builds[idx]
+                build_channel = self.config.get_build_channel(
+                    variant, builds[idx]
+                )
+                if build_channel:
+                    self._handle_channel_switch(build_channel)
+                self.config.active_builds[variant.value] = builds[idx]
                 self.config.save(self.paths)
+                self._update_prompt()
                 console.print(f"[green]Active build: {builds[idx]}[/green]")
 
         elif action_idx == 1:
             idx = select_one(labels, title="Select build to delete")
             if idx is not None and confirm(f"Delete build {builds[idx]}?"):
                 shutil.rmtree(self._builds_dir / builds[idx])
-                if self.config.active_builds.get(self._variant.value) == builds[idx]:
-                    del self.config.active_builds[self._variant.value]
+                if self.config.active_builds.get(variant.value) == builds[idx]:
+                    del self.config.active_builds[variant.value]
                     self.config.save(self.paths)
                 console.print(f"[green]Deleted {builds[idx]}[/green]")
 
@@ -346,6 +431,76 @@ class CatmanShell(cmd2.Cmd):
                     f"{b.size // 1024}KB",
                 )
             console.print(table)
+
+    # ── data management ───────────────────────────────────────────────
+
+    def do_data(self, _statement):
+        """Manage user data directory."""
+        variant = self._variant
+        channel = self._channel
+
+        actions = [
+            "Delete current user data",
+        ]
+
+        # Offer copy between channels for variants with both
+        if variant.has_stable and variant.has_experimental:
+            other = (
+                ReleaseChannel.EXPERIMENTAL
+                if channel == ReleaseChannel.STABLE
+                else ReleaseChannel.STABLE
+            )
+            actions.append(f"Copy data from {other.value} channel")
+
+        actions.append("Open data folder")
+        actions.append("Back")
+
+        idx = select_one(actions, title="User Data Management")
+        if idx is None or actions[idx] == "Back":
+            return
+
+        action = actions[idx]
+
+        if action == "Delete current user data":
+            if confirm(
+                f"Delete ALL user data for {variant.short_name}/{channel.value}? "
+                "This cannot be undone."
+            ):
+                userdata = self._userdata
+                if userdata.exists():
+                    shutil.rmtree(userdata)
+                self.paths.ensure_dirs(variant, channel)
+                console.print("[green]User data deleted.[/green]")
+
+        elif action.startswith("Copy data from"):
+            other = (
+                ReleaseChannel.EXPERIMENTAL
+                if channel == ReleaseChannel.STABLE
+                else ReleaseChannel.STABLE
+            )
+            other_userdata = self.paths.userdata_dir(variant, other)
+            if not self._has_user_content(other_userdata):
+                console.print(
+                    f"[yellow]No data found for {other.value} channel.[/yellow]"
+                )
+                return
+            if confirm(
+                f"Copy data from {other.value}? "
+                f"This will overwrite current {channel.value} data."
+            ):
+                current = self._userdata
+                if current.exists():
+                    shutil.rmtree(current)
+                shutil.copytree(other_userdata, current)
+                console.print(
+                    f"[green]Copied data from {other.value} channel.[/green]"
+                )
+
+        elif action == "Open data folder":
+            userdata = self._userdata
+            userdata.mkdir(parents=True, exist_ok=True)
+            console.print(f"Opening {userdata}")
+            open_file_browser(str(userdata))
 
     # ── content management ──────────────────────────────────────────────
 
