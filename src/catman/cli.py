@@ -25,7 +25,9 @@ console = Console()
 
 
 class CatmanShell(cmd2.Cmd):
-    intro = "Welcome to catman \u2014 Cataclysm Game Manager\nType 'help' for commands.\n"
+    intro = (
+        "Welcome to catman \u2014 Cataclysm Game Manager\nType 'help' for commands.\n"
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -35,9 +37,7 @@ class CatmanShell(cmd2.Cmd):
         channel = self.config.get_channel(variant)
         # Migrate legacy userdata/ to channel-specific directory
         if self.paths.migrate_legacy_userdata(variant, channel):
-            console.print(
-                f"[dim]Migrated user data to {channel.value} channel.[/dim]"
-            )
+            console.print(f"[dim]Migrated user data to {channel.value} channel.[/dim]")
         self.paths.ensure_dirs(variant, channel)
         self._update_prompt()
         self.hidden_commands.extend(
@@ -216,9 +216,7 @@ class CatmanShell(cmd2.Cmd):
         arch = get_arch()
         asset = find_matching_asset(release.assets, os_name, arch, tiles)
         if asset is None:
-            console.print(
-                f"[red]No matching build found for {os_name}/{arch}.[/red]"
-            )
+            console.print(f"[red]No matching build found for {os_name}/{arch}.[/red]")
             if release.assets:
                 console.print("Available assets:")
                 for a in release.assets:
@@ -296,9 +294,7 @@ class CatmanShell(cmd2.Cmd):
         if action_idx == 0:
             idx = select_one(labels, title="Select build to activate")
             if idx is not None:
-                build_channel = self.config.get_build_channel(
-                    variant, builds[idx]
-                )
+                build_channel = self.config.get_build_channel(variant, builds[idx])
                 if build_channel:
                     self._handle_channel_switch(build_channel)
                 self.config.active_builds[variant.value] = builds[idx]
@@ -383,9 +379,7 @@ class CatmanShell(cmd2.Cmd):
                 for b in backups
             ]
             bidx = select_one(items, title="Select backup to restore")
-            if bidx is not None and confirm(
-                "Restore? This overwrites current saves."
-            ):
+            if bidx is not None and confirm("Restore? This overwrites current saves."):
                 restore_backup(backups[bidx], save_dir)
                 console.print(f"[green]Restored: {backups[bidx].name}[/green]")
 
@@ -407,9 +401,7 @@ class CatmanShell(cmd2.Cmd):
             if not backups:
                 console.print("No backups found.")
                 return
-            items = [
-                f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M})" for b in backups
-            ]
+            items = [f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M})" for b in backups]
             bidx = select_one(items, title="Select backup to delete")
             if bidx is not None and confirm(f"Delete {backups[bidx].name}?"):
                 delete_backup(backups[bidx])
@@ -492,9 +484,7 @@ class CatmanShell(cmd2.Cmd):
                 if current.exists():
                     shutil.rmtree(current)
                 shutil.copytree(other_userdata, current)
-                console.print(
-                    f"[green]Copied data from {other.value} channel.[/green]"
-                )
+                console.print(f"[green]Copied data from {other.value} channel.[/green]")
 
         elif action == "Open data folder":
             userdata = self._userdata

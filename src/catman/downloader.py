@@ -72,7 +72,15 @@ def _extract_dmg(dmg: Path, dest: Path) -> Path:
     mount_point = Path(tempfile.mkdtemp(prefix="catman_dmg_"))
     try:
         result = subprocess.run(
-            ["hdiutil", "attach", "-nobrowse", "-noverify", "-mountpoint", str(mount_point), str(dmg)],
+            [
+                "hdiutil",
+                "attach",
+                "-nobrowse",
+                "-noverify",
+                "-mountpoint",
+                str(mount_point),
+                str(dmg),
+            ],
             capture_output=True,
             text=True,
         )

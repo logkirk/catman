@@ -31,7 +31,9 @@ def match_asset(name: str, os_name: str, arch: str, tiles: bool = True) -> bool:
     n = name.lower()
 
     # Must be a downloadable archive (skip .apk, .aab, etc.)
-    if not any(n.endswith(ext) for ext in (".tar.gz", ".tar.xz", ".tar.bz2", ".zip", ".dmg")):
+    if not any(
+        n.endswith(ext) for ext in (".tar.gz", ".tar.xz", ".tar.bz2", ".zip", ".dmg")
+    ):
         return False
 
     # Skip android

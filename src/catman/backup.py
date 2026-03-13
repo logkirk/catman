@@ -33,9 +33,7 @@ def list_backups(backups_dir: Path) -> list[Backup]:
     return backups
 
 
-def create_backup(
-    save_dir: Path, backups_dir: Path, name: str | None = None
-) -> Backup:
+def create_backup(save_dir: Path, backups_dir: Path, name: str | None = None) -> Backup:
     """Create a zip backup of the save directory."""
     if not save_dir.exists() or not any(save_dir.iterdir()):
         raise FileNotFoundError(f"No saves found in {save_dir}")
