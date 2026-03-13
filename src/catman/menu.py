@@ -11,7 +11,9 @@ _QUIT_KEYS = ["escape", "ctrl-g"]
 
 for _name, _cap in (("right", "kcuf1"), ("left", "kcub1")):
     try:
-        _seq = subprocess.check_output(["tput", _cap], stderr=subprocess.DEVNULL).decode()
+        _seq = subprocess.check_output(
+            ["tput", _cap], stderr=subprocess.DEVNULL
+        ).decode()
         if _seq:
             TerminalMenu._name_to_control_character[_name] = _seq
             if _name == "right":

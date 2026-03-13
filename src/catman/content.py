@@ -88,7 +88,11 @@ def install_from_catalog(item: ContentItem, userdata_path: Path) -> str:
         extract_archive(archive, extracted_dir)
 
         return _install_extracted(
-            extracted_dir, content_dir, item.content_type, item.name, rename_to=item.name
+            extracted_dir,
+            content_dir,
+            item.content_type,
+            item.name,
+            rename_to=item.name,
         )
 
 
@@ -134,7 +138,9 @@ def _absorb_nested_markers(dest: Path, marker: str) -> None:
 
 def _rewrite_marker_name(marker_path: Path, new_name: str) -> None:
     """Rewrite NAME: and VIEW: lines in a marker file to new_name."""
-    lines = marker_path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    lines = marker_path.read_text(encoding="utf-8", errors="replace").splitlines(
+        keepends=True
+    )
     new_lines = []
     for line in lines:
         if line.startswith("NAME:"):
