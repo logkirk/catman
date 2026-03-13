@@ -63,7 +63,7 @@ def install_from_catalog(item: ContentItem, userdata_path: Path) -> str:
         extract_archive(archive, extracted_dir)
 
         return _install_extracted(
-            extracted_dir, content_dir, item.content_type, item.name
+            extracted_dir, content_dir, item.content_type, item.name, rename_to=item.name
         )
 
 
@@ -93,8 +93,40 @@ def _download_from_github(repo_url: str, tmpdir: Path) -> Path:
     return archive
 
 
+def _absorb_nested_markers(dest: Path, marker: str) -> None:
+    """Remove nested marker files so they don't register as separate game entries.
+    Lifts musicset.json to the soundpack root so music still loads."""
+    root_marker = dest / marker
+    for nested_marker in list(dest.rglob(marker)):
+        if nested_marker == root_marker:
+            continue
+        nested_dir = nested_marker.parent
+        nested_musicset = nested_dir / "musicset.json"
+        if nested_musicset.exists() and not (dest / "musicset.json").exists():
+            shutil.move(str(nested_musicset), str(dest / "musicset.json"))
+        nested_marker.unlink()
+
+
+def _rewrite_marker_name(marker_path: Path, new_name: str) -> None:
+    """Rewrite NAME: and VIEW: lines in a marker file to new_name."""
+    lines = marker_path.read_text(encoding="utf-8", errors="replace").splitlines(keepends=True)
+    new_lines = []
+    for line in lines:
+        if line.startswith("NAME:"):
+            new_lines.append(f"NAME: {new_name}\n")
+        elif line.startswith("VIEW:"):
+            new_lines.append(f"VIEW: {new_name}\n")
+        else:
+            new_lines.append(line)
+    marker_path.write_text("".join(new_lines), encoding="utf-8")
+
+
 def _install_extracted(
-    extracted: Path, content_dir: Path, content_type: ContentType, fallback_name: str
+    extracted: Path,
+    content_dir: Path,
+    content_type: ContentType,
+    fallback_name: str,
+    rename_to: str | None = None,
 ) -> str:
     """Move extracted content into the appropriate content directory."""
     if content_type == ContentType.FONTS:
@@ -120,18 +152,27 @@ def _install_extracted(
 
         # Drop any dir that is nested inside another found dir
         found_dirs = {
-            d for d in found_dirs
+            d
+            for d in found_dirs
             if not any(d != other and d.is_relative_to(other) for other in found_dirs)
         }
 
         if found_dirs:
             names = []
             for d in found_dirs:
-                dest = content_dir / d.name
+                if rename_to and len(found_dirs) == 1:
+                    marker_file = d / marker
+                    if marker_file.exists():
+                        _rewrite_marker_name(marker_file, rename_to)
+                    dest = content_dir / rename_to
+                else:
+                    dest = content_dir / d.name
                 if dest.exists():
                     shutil.rmtree(dest)
                 shutil.copytree(d, dest)
-                names.append(d.name)
+                if rename_to and len(found_dirs) == 1:
+                    _absorb_nested_markers(dest, marker)
+                names.append(dest.name)
             return ", ".join(sorted(names))
 
     # Fallback: copy the whole thing under the item name

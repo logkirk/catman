@@ -77,7 +77,7 @@ class ContentItem:
 CONTENT_CATALOG: list[ContentItem] = [
     # --- Soundpacks ---
     ContentItem(
-        name="CC-Sounds",
+        name="CC-Sounds (full)",
         description="Comprehensive community soundpack with wide coverage",
         url="https://github.com/Fris0uman/CDDA-Soundpacks/releases/latest/download/CC-Sounds.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -85,7 +85,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="CC-Sounds-sfx-only",
+        name="CC-Sounds (sfx only)",
         description="CC-Sounds SFX-only (no music)",
         url="https://github.com/Fris0uman/CDDA-Soundpacks/releases/latest/download/CC-Sounds-sfx-only.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -93,7 +93,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="CO.AG-music-only",
+        name="CC-Sounds (music only)",
         description="CO.AG Music ambient soundtrack",
         url="https://github.com/Fris0uman/CDDA-Soundpacks/releases/latest/download/CO.AG-music-only.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -109,7 +109,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="@'s soundpack",
+        name="@s",
         description="Damalsk's community soundpack",
         url="https://github.com/damalsk/damalsksoundpack/archive/refs/heads/master.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -117,7 +117,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="CDDA-Soundpack",
+        name="budg3",
         description="budg3's CDDA soundpack",
         url="https://github.com/budg3/CDDA-Soundpack/archive/refs/heads/master.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -133,7 +133,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="ChestHoleCC",
+        name="ChestHole (CC-licensed)",
         description="ChestHole CC-licensed soundpack",
         url="https://web.archive.org/web/2/https://chezzo.com/cataclysm/ChestHoleCCSoundPack.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -141,7 +141,7 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="ChestOldTimey",
+        name="ChestHole (Old Timey)",
         description="ChestHole Old Timey soundpack",
         url="https://web.archive.org/web/2/https://chezzo.com/cataclysm/ChestOldTimeySoundPack.zip",
         content_type=ContentType.SOUNDPACKS,
@@ -157,8 +157,8 @@ CONTENT_CATALOG: list[ContentItem] = [
         is_github_repo=False,
     ),
     ContentItem(
-        name="Otopack-BN-Mk-2",
-        description="Otopack for Bright Nights Mk-2",
+        name="Otopack",
+        description="Otopack for Bright Nights",
         url="https://github.com/NarandBD/Otopack-BN-Mk-2/archive/refs/heads/master.zip",
         content_type=ContentType.SOUNDPACKS,
         variants=[GameVariant.BN],
