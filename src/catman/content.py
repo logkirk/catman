@@ -118,6 +118,12 @@ def _install_extracted(
         for p in extracted.rglob(marker):
             found_dirs.add(p.parent)
 
+        # Drop any dir that is nested inside another found dir
+        found_dirs = {
+            d for d in found_dirs
+            if not any(d != other and d.is_relative_to(other) for other in found_dirs)
+        }
+
         if found_dirs:
             names = []
             for d in found_dirs:
