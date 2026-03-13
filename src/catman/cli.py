@@ -259,7 +259,7 @@ class CatmanShell(cmd2.Cmd):
         console.print(f"Launching {self._variant.display_name}...")
         try:
             launch_game(build_path, self._userdata, world=world)
-        except FileNotFoundError as e:
+        except (FileNotFoundError, RuntimeError) as e:
             console.print(f"[red]{e}[/red]")
 
     # ── backups ─────────────────────────────────────────────────────────

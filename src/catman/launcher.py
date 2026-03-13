@@ -15,13 +15,38 @@ CURSES_EXE_NAMES = [
 ]
 
 
+def _find_binary_in_app(app_path: Path, tiles: bool = True) -> Path | None:
+    """Find the actual game binary inside a macOS .app bundle."""
+    resources = app_path / "Contents" / "Resources"
+    if not resources.is_dir():
+        return None
+    names = TILES_EXE_NAMES if tiles else CURSES_EXE_NAMES
+    for name in names:
+        binary = resources / name
+        if binary.is_file() and os.access(binary, os.X_OK):
+            return binary
+    # Fallback: any cataclysm executable in Resources
+    for p in resources.iterdir():
+        if (
+            p.is_file()
+            and os.access(p, os.X_OK)
+            and "cataclysm" in p.name.lower()
+            and not p.name.startswith(".")
+            and p.suffix not in (".txt", ".json", ".md", ".py", ".sh")
+        ):
+            return p
+    return None
+
+
 def find_executable(build_path: Path, tiles: bool = True) -> Path | None:
     """Find the game executable in a build directory."""
-    # On macOS, look for .app bundles first
+    # On macOS, look inside .app bundles for the actual binary
     if get_os() == "macos":
         for app in build_path.rglob("*.app"):
             if "cataclysm" in app.name.lower():
-                return app
+                binary = _find_binary_in_app(app, tiles)
+                if binary:
+                    return binary
 
     names = TILES_EXE_NAMES if tiles else CURSES_EXE_NAMES
 
@@ -38,7 +63,7 @@ def find_executable(build_path: Path, tiles: bool = True) -> Path | None:
             and os.access(p, os.X_OK)
             and "cataclysm" in p.name.lower()
             and not p.name.startswith(".")
-            and not p.suffix in (".txt", ".json", ".md", ".py", ".sh")
+            and p.suffix not in (".txt", ".json", ".md", ".py", ".sh")
         ):
             return p
 
@@ -77,15 +102,21 @@ def launch_game(
         raise FileNotFoundError(f"No game executable found in {build_path}")
 
     userdata_path.mkdir(parents=True, exist_ok=True)
-    args: list[str] = []
 
-    if get_os() == "macos" and exe.suffix == ".app":
-        args = ["open", "-a", str(exe), "--args"]
-    else:
-        args = [str(exe)]
-
-    args.extend(["--userdir", str(userdata_path)])
+    game_args = ["--userdir", str(userdata_path)]
     if world:
-        args.extend(["--world", world])
+        game_args.extend(["--world", world])
 
-    subprocess.Popen(args, cwd=str(build_path))
+    env = os.environ.copy()
+
+    if get_os() == "macos":
+        # Set framework/library paths for SDL dependencies
+        exe_dir = str(exe.parent)
+        env["DYLD_LIBRARY_PATH"] = exe_dir
+        env["DYLD_FRAMEWORK_PATH"] = exe_dir
+
+    subprocess.Popen(
+        [str(exe)] + game_args,
+        cwd=str(exe.parent),
+        env=env,
+    )
