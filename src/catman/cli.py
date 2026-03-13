@@ -275,85 +275,75 @@ class CatmanShell(cmd2.Cmd):
     def do_builds(self, _statement):
         """List and manage downloaded builds."""
         variant = self._variant
-
         while True:
-            tier1_idx = select_one(
+            idx = select_one(
                 ["Manage builds", "Open builds folder", "Back"],
                 title="Build Management",
             )
-            if tier1_idx is None or tier1_idx is BACK or tier1_idx == 2:
+            if idx is None or idx is BACK or idx == 2:
                 return
-
-            if tier1_idx == 1:
+            if idx == 1:
                 self._builds_dir.mkdir(parents=True, exist_ok=True)
                 console.print(f"Opening {self._builds_dir}")
                 open_file_browser(str(self._builds_dir))
                 return
-
-            # Manage builds
-            if not self._builds_dir.exists():
-                console.print("No builds yet. Use 'download' to get started.")
+            if self._builds_manage(variant) is not BACK:
                 return
 
-            builds = sorted(
-                [d.name for d in self._builds_dir.iterdir() if d.is_dir()],
-                reverse=True,
-            )
-            if not builds:
-                console.print("No builds found.")
-                return
+    def _builds_manage(self, variant: GameVariant) -> object:
+        """Build selection. Returns BACK to re-show tier-1, None to exit."""
+        if not self._builds_dir.exists():
+            console.print("No builds yet. Use 'download' to get started.")
+            return None
+        builds = sorted(
+            [d.name for d in self._builds_dir.iterdir() if d.is_dir()], reverse=True
+        )
+        if not builds:
+            console.print("No builds found.")
+            return None
+        active = self.config.active_builds.get(variant.value)
+        labels = []
+        for b in builds:
+            label = b
+            ch = self.config.get_build_channel(variant, b)
+            if ch:
+                label += f"  [{ch.value}]"
+            if b == active:
+                label += "  [active]"
+            labels.append(label)
+        while True:
+            bidx = select_one(labels, title="Select build")
+            if bidx is None:
+                return None
+            if bidx is BACK:
+                return BACK
+            if self._builds_action(variant, builds[bidx]) is not BACK:
+                return None
 
-            active = self.config.active_builds.get(variant.value)
-            labels = []
-            for b in builds:
-                label = b
-                ch = self.config.get_build_channel(variant, b)
-                if ch:
-                    label += f"  [{ch.value}]"
-                if b == active:
-                    label += "  [active]"
-                labels.append(label)
-
-            while True:
-                bidx = select_one(labels, title="Select build")
-                if bidx is None:
-                    return
-                if bidx is BACK:
-                    break  # back to tier 1
-
-                selected_build = builds[bidx]
-
-                while True:
-                    action_idx = select_one(
-                        ["Set active", "Delete", "Back"], title=selected_build
-                    )
-                    if action_idx is None:
-                        return
-                    if action_idx is BACK or action_idx == 2:
-                        break  # back to build selection
-
-                    if action_idx == 0:
-                        build_channel = self.config.get_build_channel(
-                            variant, selected_build
-                        )
-                        if build_channel:
-                            self._handle_channel_switch(build_channel)
-                        self.config.active_builds[variant.value] = selected_build
-                        self.config.save(self.paths)
-                        self._update_prompt()
-                        console.print(f"[green]Active build: {selected_build}[/green]")
-                    elif action_idx == 1:
-                        if confirm(f"Delete build {selected_build}?"):
-                            shutil.rmtree(self._builds_dir / selected_build)
-                            if (
-                                self.config.active_builds.get(variant.value)
-                                == selected_build
-                            ):
-                                del self.config.active_builds[variant.value]
-                                self.config.save(self.paths)
-                            self._update_prompt()
-                            console.print(f"[green]Deleted {selected_build}[/green]")
-                    return
+    def _builds_action(self, variant: GameVariant, build_name: str) -> object:
+        """Build action menu. Returns BACK to re-show build list, None to exit."""
+        action_idx = select_one(["Set active", "Delete", "Back"], title=build_name)
+        if action_idx is None:
+            return None
+        if action_idx is BACK or action_idx == 2:
+            return BACK
+        if action_idx == 0:
+            ch = self.config.get_build_channel(variant, build_name)
+            if ch:
+                self._handle_channel_switch(ch)
+            self.config.active_builds[variant.value] = build_name
+            self.config.save(self.paths)
+            self._update_prompt()
+            console.print(f"[green]Active build: {build_name}[/green]")
+        elif action_idx == 1:
+            if confirm(f"Delete build {build_name}?"):
+                shutil.rmtree(self._builds_dir / build_name)
+                if self.config.active_builds.get(variant.value) == build_name:
+                    del self.config.active_builds[variant.value]
+                    self.config.save(self.paths)
+                self._update_prompt()
+                console.print(f"[green]Deleted {build_name}[/green]")
+        return None
 
     # ── launch ──────────────────────────────────────────────────────────
 
@@ -392,73 +382,68 @@ class CatmanShell(cmd2.Cmd):
     def do_backups(self, _statement):
         """Manage save backups."""
         while True:
-            tier1_idx = select_one(
+            idx = select_one(
                 ["Manage backups", "Open backups folder", "Back"],
                 title="Backup Management",
             )
-            if tier1_idx is None or tier1_idx is BACK or tier1_idx == 2:
+            if idx is None or idx is BACK or idx == 2:
                 return
-
-            if tier1_idx == 1:
+            if idx == 1:
                 self._backups_dir.mkdir(parents=True, exist_ok=True)
                 console.print(f"Opening {self._backups_dir}")
                 open_file_browser(str(self._backups_dir))
                 return
+            if self._backups_manage() is not BACK:
+                return
 
-            # Manage backups
-            save_dir = self._userdata / "save"
+    def _backups_manage(self) -> object:
+        """Backup selection. Returns BACK to re-show tier-1, None to exit."""
+        save_dir = self._userdata / "save"
+        while True:
+            backups = list_backups(self._backups_dir)
+            items = ["+ Create new backup"] + [
+                f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M}, {b.size // 1024}KB)"
+                for b in backups
+            ]
+            bidx = select_one(items, title="Backups")
+            if bidx is None:
+                return None
+            if bidx is BACK:
+                return BACK
+            if bidx == 0:
+                name = input("Backup name (enter for auto): ").strip() or None
+                try:
+                    backup = create_backup(save_dir, self._backups_dir, name)
+                    console.print(f"[green]Created backup: {backup.name}[/green]")
+                except FileNotFoundError:
+                    console.print("[yellow]No saves to back up.[/yellow]")
+                continue  # refresh list
+            if self._backups_action(backups[bidx - 1], save_dir) is not BACK:
+                return None
 
-            while True:
-                backups = list_backups(self._backups_dir)
-                items = ["+ Create new backup"]
-                for b in backups:
-                    items.append(
-                        f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M}, {b.size // 1024}KB)"
-                    )
-
-                bidx = select_one(items, title="Backups")
-                if bidx is None:
-                    return
-                if bidx is BACK:
-                    break  # back to tier 1
-
-                if bidx == 0:
-                    name = input("Backup name (enter for auto): ").strip() or None
-                    try:
-                        backup = create_backup(save_dir, self._backups_dir, name)
-                        console.print(f"[green]Created backup: {backup.name}[/green]")
-                    except FileNotFoundError:
-                        console.print("[yellow]No saves to back up.[/yellow]")
-                    continue  # refresh backup list
-
-                selected_backup = backups[bidx - 1]
-
-                while True:
-                    action_idx = select_one(
-                        ["Restore", "Rename", "Delete", "Back"],
-                        title=selected_backup.name,
-                    )
-                    if action_idx is None:
-                        return
-                    if action_idx is BACK or action_idx == 3:
-                        break  # back to backup selection
-
-                    if action_idx == 0:
-                        if confirm("Restore? This overwrites current saves."):
-                            restore_backup(selected_backup, save_dir)
-                            console.print(
-                                f"[green]Restored: {selected_backup.name}[/green]"
-                            )
-                    elif action_idx == 1:
-                        new_name = input("New name: ").strip()
-                        if new_name:
-                            rename_backup(selected_backup, new_name)
-                            console.print(f"[green]Renamed to {new_name}[/green]")
-                    elif action_idx == 2:
-                        if confirm(f"Delete {selected_backup.name}?"):
-                            delete_backup(selected_backup)
-                            console.print("[green]Deleted.[/green]")
-                    return
+    def _backups_action(self, backup, save_dir: Path) -> object:
+        """Backup action menu. Returns BACK to re-show backup list, None to exit."""
+        action_idx = select_one(
+            ["Restore", "Rename", "Delete", "Back"], title=backup.name
+        )
+        if action_idx is None:
+            return None
+        if action_idx is BACK or action_idx == 3:
+            return BACK
+        if action_idx == 0:
+            if confirm("Restore? This overwrites current saves."):
+                restore_backup(backup, save_dir)
+                console.print(f"[green]Restored: {backup.name}[/green]")
+        elif action_idx == 1:
+            new_name = input("New name: ").strip()
+            if new_name:
+                rename_backup(backup, new_name)
+                console.print(f"[green]Renamed to {new_name}[/green]")
+        elif action_idx == 2:
+            if confirm(f"Delete {backup.name}?"):
+                delete_backup(backup)
+                console.print("[green]Deleted.[/green]")
+        return None
 
     # ── data management ───────────────────────────────────────────────
 
@@ -534,85 +519,84 @@ class CatmanShell(cmd2.Cmd):
         """Generic handler for mods/fonts/soundpacks/tilesets."""
         label = content_type.display_name.lower()
         content_dir = get_content_dir(self._userdata, content_type)
-
         while True:
-            tier1_idx = select_one(
+            idx = select_one(
                 [f"Manage popular {label}", f"Open {label} folder", "Back"],
                 title=f"{content_type.display_name} Management",
             )
-            if tier1_idx is None or tier1_idx is BACK or tier1_idx == 2:
+            if idx is None or idx is BACK or idx == 2:
                 return
-
-            if tier1_idx == 1:
+            if idx == 1:
                 content_dir.mkdir(parents=True, exist_ok=True)
                 console.print(f"Opening {content_dir}")
                 open_file_browser(str(content_dir))
                 return
-
-            # Manage popular
             catalog = get_catalog(content_type, self._variant)
             if not catalog:
                 console.print(
                     f"[yellow]No {label} available for {self._variant.display_name}.[/yellow]"
                 )
                 return
+            if self._content_manage(content_type, catalog) is not BACK:
+                return
 
-            items = []
-            for item in catalog:
-                installed = is_catalog_item_installed(item, self._userdata)
-                suffix = "  [installed]" if installed else ""
-                items.append(f"{item.name} \u2014 {item.description}{suffix}")
+    def _content_manage(self, content_type: ContentType, catalog: list) -> object:
+        """Content item selection. Returns BACK to re-show tier-1, None to exit."""
+        label = content_type.display_name.lower()
+        while True:
+            items = [
+                f"{item.name} \u2014 {item.description}"
+                + (
+                    "  [installed]"
+                    if is_catalog_item_installed(item, self._userdata)
+                    else ""
+                )
+                for item in catalog
+            ]
+            cidx = select_one(items, title=f"Select {label}")
+            if cidx is None:
+                return None
+            if cidx is BACK:
+                return BACK
+            if self._content_action(catalog[cidx]) is not BACK:
+                return None
 
-            while True:
-                cidx = select_one(items, title=f"Select {label}")
-                if cidx is None:
-                    return
-                if cidx is BACK:
-                    break  # back to tier 1
-
-                selected = catalog[cidx]
-                installed = is_catalog_item_installed(selected, self._userdata)
-
-                while True:
-                    if installed:
-                        action_idx = select_one(
-                            ["Update", "Delete", "Back"], title=selected.name
-                        )
-                        if action_idx is None:
-                            return
-                        if action_idx is BACK or action_idx == 2:
-                            break  # back to item selection
-                        if action_idx == 0:
-                            console.print(f"Updating {selected.name}...")
-                            try:
-                                result = install_from_catalog(selected, self._userdata)
-                                console.print(f"[green]Updated: {result}[/green]")
-                            except Exception as e:
-                                console.print(f"[red]Update failed: {e}[/red]")
-                        elif action_idx == 1:
-                            if confirm(f"Delete {selected.name}?"):
-                                try:
-                                    delete_catalog_item(selected, self._userdata)
-                                    console.print(
-                                        f"[green]Deleted {selected.name}.[/green]"
-                                    )
-                                except Exception as e:
-                                    console.print(f"[red]Delete failed: {e}[/red]")
-                    else:
-                        action_idx = select_one(
-                            ["Install", "Back"], title=selected.name
-                        )
-                        if action_idx is None:
-                            return
-                        if action_idx is BACK or action_idx == 1:
-                            break  # back to item selection
-                        console.print(f"Installing {selected.name}...")
-                        try:
-                            result = install_from_catalog(selected, self._userdata)
-                            console.print(f"[green]Installed: {result}[/green]")
-                        except Exception as e:
-                            console.print(f"[red]Installation failed: {e}[/red]")
-                    return
+    def _content_action(self, selected) -> object:
+        """Content action menu. Returns BACK to re-show item list, None to exit."""
+        installed = is_catalog_item_installed(selected, self._userdata)
+        if installed:
+            action_idx = select_one(["Update", "Delete", "Back"], title=selected.name)
+            if action_idx is None:
+                return None
+            if action_idx is BACK or action_idx == 2:
+                return BACK
+            if action_idx == 0:
+                console.print(f"Updating {selected.name}...")
+                try:
+                    result = install_from_catalog(selected, self._userdata)
+                    console.print(f"[green]Updated: {result}[/green]")
+                except Exception as e:
+                    console.print(f"[red]Update failed: {e}[/red]")
+            elif action_idx == 1:
+                if confirm(f"Delete {selected.name}?"):
+                    try:
+                        delete_catalog_item(selected, self._userdata)
+                        console.print(f"[green]Deleted {selected.name}.[/green]")
+                    except Exception as e:
+                        console.print(f"[red]Delete failed: {e}[/red]")
+        else:
+            action_idx = select_one(["Install", "Back"], title=selected.name)
+            if action_idx is None:
+                return None
+            if action_idx is BACK or action_idx == 1:
+                return BACK
+            console.print(f"Installing {selected.name}...")
+            try:
+                result = install_from_catalog(selected, self._userdata)
+                console.print(f"[green]Installed: {result}[/green]")
+            except Exception as e:
+                console.print(f"[red]Installation failed: {e}[/red]")
+        return None
 
     def do_mods(self, _statement):
         """Manage mods."""
