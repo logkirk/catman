@@ -41,7 +41,15 @@ class CatmanShell(cmd2.Cmd):
         self.paths.ensure_dirs(variant, channel)
         self._update_prompt()
         self.hidden_commands.extend(
-            ["alias", "macro", "run_script", "run_pyscript", "shortcuts", "edit"]
+            [
+                "alias",
+                "macro",
+                "run_script",
+                "run_pyscript",
+                "shortcuts",
+                "edit",
+                "shell",
+            ]
         )
 
     def _update_prompt(self):
