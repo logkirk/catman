@@ -3,7 +3,6 @@ from pathlib import Path
 
 import cmd2
 from rich.console import Console
-from rich.table import Table
 
 from .backup import (
     create_backup,
@@ -14,7 +13,13 @@ from .backup import (
 )
 from .config import AppPaths, Config
 from .constants import ContentType, GameVariant, ReleaseChannel
-from .content import get_catalog, get_content_dir, install_from_catalog, list_installed
+from .content import (
+    delete_catalog_item,
+    get_catalog,
+    get_content_dir,
+    install_from_catalog,
+    is_catalog_item_installed,
+)
 from .downloader import download_file, extract_archive
 from .github import GitHubClient
 from .launcher import find_most_recent_world, find_worlds, launch_game
@@ -270,6 +275,22 @@ class CatmanShell(cmd2.Cmd):
     def do_builds(self, _statement):
         """List and manage downloaded builds."""
         variant = self._variant
+
+        # Tier 1
+        tier1_idx = select_one(
+            ["Manage builds", "Open builds folder", "Back"],
+            title="Build Management",
+        )
+        if tier1_idx is None or tier1_idx == 2:
+            return
+
+        if tier1_idx == 1:
+            self._builds_dir.mkdir(parents=True, exist_ok=True)
+            console.print(f"Opening {self._builds_dir}")
+            open_file_browser(str(self._builds_dir))
+            return
+
+        # Manage builds
         if not self._builds_dir.exists():
             console.print("No builds yet. Use 'download' to get started.")
             return
@@ -292,32 +313,32 @@ class CatmanShell(cmd2.Cmd):
                 label += "  [active]"
             labels.append(label)
 
-        action_idx = select_one(
-            ["Set active build", "Delete a build", "Back"],
-            title="Build management",
-        )
+        bidx = select_one(labels, title="Select build")
+        if bidx is None:
+            return
+
+        selected_build = builds[bidx]
+        action_idx = select_one(["Set active", "Delete", "Back"], title=selected_build)
         if action_idx is None or action_idx == 2:
             return
 
         if action_idx == 0:
-            idx = select_one(labels, title="Select build to activate")
-            if idx is not None:
-                build_channel = self.config.get_build_channel(variant, builds[idx])
-                if build_channel:
-                    self._handle_channel_switch(build_channel)
-                self.config.active_builds[variant.value] = builds[idx]
-                self.config.save(self.paths)
-                self._update_prompt()
-                console.print(f"[green]Active build: {builds[idx]}[/green]")
+            build_channel = self.config.get_build_channel(variant, selected_build)
+            if build_channel:
+                self._handle_channel_switch(build_channel)
+            self.config.active_builds[variant.value] = selected_build
+            self.config.save(self.paths)
+            self._update_prompt()
+            console.print(f"[green]Active build: {selected_build}[/green]")
 
         elif action_idx == 1:
-            idx = select_one(labels, title="Select build to delete")
-            if idx is not None and confirm(f"Delete build {builds[idx]}?"):
-                shutil.rmtree(self._builds_dir / builds[idx])
-                if self.config.active_builds.get(variant.value) == builds[idx]:
+            if confirm(f"Delete build {selected_build}?"):
+                shutil.rmtree(self._builds_dir / selected_build)
+                if self.config.active_builds.get(variant.value) == selected_build:
                     del self.config.active_builds[variant.value]
                     self.config.save(self.paths)
-                console.print(f"[green]Deleted {builds[idx]}[/green]")
+                self._update_prompt()
+                console.print(f"[green]Deleted {selected_build}[/green]")
 
     # ── launch ──────────────────────────────────────────────────────────
 
@@ -355,82 +376,62 @@ class CatmanShell(cmd2.Cmd):
 
     def do_backups(self, _statement):
         """Manage save backups."""
-        actions = [
-            "Create backup",
-            "Restore backup",
-            "Rename backup",
-            "Delete backup",
-            "List backups",
-            "Back",
-        ]
-        idx = select_one(actions, title="Backup management")
-        if idx is None or idx == 5:
+        # Tier 1
+        tier1_idx = select_one(
+            ["Manage backups", "Open backups folder", "Back"],
+            title="Backup Management",
+        )
+        if tier1_idx is None or tier1_idx == 2:
             return
 
-        save_dir = self._userdata / "save"
+        if tier1_idx == 1:
+            self._backups_dir.mkdir(parents=True, exist_ok=True)
+            console.print(f"Opening {self._backups_dir}")
+            open_file_browser(str(self._backups_dir))
+            return
 
-        if idx == 0:
+        # Manage backups
+        save_dir = self._userdata / "save"
+        backups = list_backups(self._backups_dir)
+        items = ["+ Create new backup"]
+        for b in backups:
+            items.append(
+                f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M}, {b.size // 1024}KB)"
+            )
+
+        bidx = select_one(items, title="Backups")
+        if bidx is None:
+            return
+
+        if bidx == 0:
             name = input("Backup name (enter for auto): ").strip() or None
             try:
                 backup = create_backup(save_dir, self._backups_dir, name)
                 console.print(f"[green]Created backup: {backup.name}[/green]")
             except FileNotFoundError:
                 console.print("[yellow]No saves to back up.[/yellow]")
-
-        elif idx == 1:
-            backups = list_backups(self._backups_dir)
-            if not backups:
-                console.print("No backups found.")
+        else:
+            selected_backup = backups[bidx - 1]
+            action_idx = select_one(
+                ["Restore", "Rename", "Delete", "Back"],
+                title=selected_backup.name,
+            )
+            if action_idx is None or action_idx == 3:
                 return
-            items = [
-                f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M}, {b.size // 1024}KB)"
-                for b in backups
-            ]
-            bidx = select_one(items, title="Select backup to restore")
-            if bidx is not None and confirm("Restore? This overwrites current saves."):
-                restore_backup(backups[bidx], save_dir)
-                console.print(f"[green]Restored: {backups[bidx].name}[/green]")
 
-        elif idx == 2:
-            backups = list_backups(self._backups_dir)
-            if not backups:
-                console.print("No backups found.")
-                return
-            items = [b.name for b in backups]
-            bidx = select_one(items, title="Select backup to rename")
-            if bidx is not None:
+            if action_idx == 0:
+                if confirm("Restore? This overwrites current saves."):
+                    restore_backup(selected_backup, save_dir)
+                    console.print(f"[green]Restored: {selected_backup.name}[/green]")
+            elif action_idx == 1:
                 new_name = input("New name: ").strip()
                 if new_name:
-                    rename_backup(backups[bidx], new_name)
+                    rename_backup(selected_backup, new_name)
                     console.print(f"[green]Renamed to {new_name}[/green]")
-
-        elif idx == 3:
-            backups = list_backups(self._backups_dir)
-            if not backups:
-                console.print("No backups found.")
-                return
-            items = [f"{b.name}  ({b.created_at:%Y-%m-%d %H:%M})" for b in backups]
-            bidx = select_one(items, title="Select backup to delete")
-            if bidx is not None and confirm(f"Delete {backups[bidx].name}?"):
-                delete_backup(backups[bidx])
-                console.print("[green]Deleted.[/green]")
-
-        elif idx == 4:
-            backups = list_backups(self._backups_dir)
-            if not backups:
-                console.print("No backups found.")
-                return
-            table = Table(title="Backups")
-            table.add_column("Name")
-            table.add_column("Date")
-            table.add_column("Size")
-            for b in backups:
-                table.add_row(
-                    b.name,
-                    f"{b.created_at:%Y-%m-%d %H:%M}",
-                    f"{b.size // 1024}KB",
-                )
-            console.print(table)
+            elif action_idx == 2:
+                if confirm(f"Delete {selected_backup.name}?"):
+                    delete_backup(selected_backup)
+                    console.print("[green]Deleted.[/green]")
 
     # ── data management ───────────────────────────────────────────────
 
@@ -505,46 +506,71 @@ class CatmanShell(cmd2.Cmd):
     def _content_command(self, content_type: ContentType):
         """Generic handler for mods/fonts/soundpacks/tilesets."""
         label = content_type.display_name.lower()
-        actions = [
-            f"Install popular {label}",
-            f"List installed {label}",
-            f"Open {label} folder",
-            "Back",
-        ]
-        idx = select_one(actions, title=f"{content_type.display_name} Management")
-        if idx is None or idx == 3:
+        content_dir = get_content_dir(self._userdata, content_type)
+
+        # Tier 1
+        tier1_idx = select_one(
+            [f"Manage popular {label}", f"Open {label} folder", "Back"],
+            title=f"{content_type.display_name} Management",
+        )
+        if tier1_idx is None or tier1_idx == 2:
             return
 
-        if idx == 0:
-            catalog = get_catalog(content_type, self._variant)
-            if not catalog:
-                console.print(
-                    f"[yellow]No {label} available for {self._variant.display_name}.[/yellow]"
-                )
-                return
-            items = [f"{item.name} \u2014 {item.description}" for item in catalog]
-            cidx = select_one(items, title=f"Select {label} to install")
-            if cidx is not None:
-                console.print(f"Installing {catalog[cidx].name}...")
-                try:
-                    result = install_from_catalog(catalog[cidx], self._userdata)
-                    console.print(f"[green]Installed: {result}[/green]")
-                except Exception as e:
-                    console.print(f"[red]Installation failed: {e}[/red]")
-
-        elif idx == 1:
-            installed = list_installed(self._userdata, content_type)
-            if installed:
-                for name in installed:
-                    console.print(f"  \u2022 {name}")
-            else:
-                console.print(f"No {label} installed.")
-
-        elif idx == 2:
-            content_dir = get_content_dir(self._userdata, content_type)
+        if tier1_idx == 1:
             content_dir.mkdir(parents=True, exist_ok=True)
             console.print(f"Opening {content_dir}")
             open_file_browser(str(content_dir))
+            return
+
+        # Manage popular
+        catalog = get_catalog(content_type, self._variant)
+        if not catalog:
+            console.print(
+                f"[yellow]No {label} available for {self._variant.display_name}.[/yellow]"
+            )
+            return
+
+        items = []
+        for item in catalog:
+            installed = is_catalog_item_installed(item, self._userdata)
+            suffix = "  [installed]" if installed else ""
+            items.append(f"{item.name} \u2014 {item.description}{suffix}")
+
+        cidx = select_one(items, title=f"Select {label}")
+        if cidx is None:
+            return
+
+        selected = catalog[cidx]
+        installed = is_catalog_item_installed(selected, self._userdata)
+
+        if installed:
+            action_idx = select_one(["Update", "Delete", "Back"], title=selected.name)
+            if action_idx is None or action_idx == 2:
+                return
+            if action_idx == 0:
+                console.print(f"Updating {selected.name}...")
+                try:
+                    result = install_from_catalog(selected, self._userdata)
+                    console.print(f"[green]Updated: {result}[/green]")
+                except Exception as e:
+                    console.print(f"[red]Update failed: {e}[/red]")
+            elif action_idx == 1:
+                if confirm(f"Delete {selected.name}?"):
+                    try:
+                        delete_catalog_item(selected, self._userdata)
+                        console.print(f"[green]Deleted {selected.name}.[/green]")
+                    except Exception as e:
+                        console.print(f"[red]Delete failed: {e}[/red]")
+        else:
+            action_idx = select_one(["Install", "Back"], title=selected.name)
+            if action_idx is None or action_idx == 1:
+                return
+            console.print(f"Installing {selected.name}...")
+            try:
+                result = install_from_catalog(selected, self._userdata)
+                console.print(f"[green]Installed: {result}[/green]")
+            except Exception as e:
+                console.print(f"[red]Installation failed: {e}[/red]")
 
     def do_mods(self, _statement):
         """Manage mods."""

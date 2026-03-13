@@ -37,6 +37,31 @@ def list_installed(userdata_path: Path, content_type: ContentType) -> list[str]:
     return sorted(d.name for d in content_dir.iterdir() if d.is_dir())
 
 
+def is_catalog_item_installed(item: ContentItem, userdata_path: Path) -> bool:
+    """Check if a catalog item is installed."""
+    content_dir = get_content_dir(userdata_path, item.content_type)
+    if item.content_type == ContentType.FONTS:
+        if not content_dir.exists():
+            return False
+        return any(
+            f.suffix.lower() in (".ttf", ".otf")
+            for f in content_dir.iterdir()
+            if f.is_file()
+        )
+    return (content_dir / item.name).is_dir()
+
+
+def delete_catalog_item(item: ContentItem, userdata_path: Path) -> None:
+    """Delete a catalog item."""
+    content_dir = get_content_dir(userdata_path, item.content_type)
+    if item.content_type == ContentType.FONTS:
+        for f in content_dir.iterdir():
+            if f.suffix.lower() in (".ttf", ".otf", ".woff", ".woff2"):
+                f.unlink()
+    else:
+        shutil.rmtree(content_dir / item.name)
+
+
 def install_from_catalog(item: ContentItem, userdata_path: Path) -> str:
     """Install a content item from the catalog. Returns description of what was installed."""
     content_dir = get_content_dir(userdata_path, item.content_type)
