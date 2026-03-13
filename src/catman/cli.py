@@ -57,6 +57,14 @@ class CatmanShell(cmd2.Cmd):
             ]
         )
 
+    def do_help(self, args) -> None:
+        if not str(args).strip():
+            # noinspection PyArgumentList
+            super().do_help("--verbose")
+        else:
+            # noinspection PyArgumentList
+            super().do_help(args)
+
     def _update_prompt(self):
         v = self.config.active_variant
         ch = self.config.get_channel(v)
