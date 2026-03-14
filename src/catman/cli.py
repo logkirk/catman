@@ -84,7 +84,9 @@ class CatmanShell(cmd2.Cmd):
         v = self.config.active_variant
         ch = self.config.get_channel(v)
         build = self.config.active_builds.get(v.value)
-        parts = [v.short_name, ch.value]
+        parts = [v.short_name]
+        if v.has_stable and v.has_experimental:
+            parts.append(ch.value)
         if build:
             parts.append(build)
         self.prompt = f"catman [{'/'.join(parts)}]> "
@@ -179,7 +181,8 @@ class CatmanShell(cmd2.Cmd):
         v = self._variant
         ch = self._channel
         console.print(f"[bold]Variant:[/bold]  {v.display_name}")
-        console.print(f"[bold]Channel:[/bold]  {ch.value}")
+        if v.has_stable and v.has_experimental:
+            console.print(f"[bold]Channel:[/bold]  {ch.value}")
 
         active_build = self.config.active_builds.get(v.value)
         console.print(
@@ -213,9 +216,9 @@ class CatmanShell(cmd2.Cmd):
         else:
             channel = ReleaseChannel.EXPERIMENTAL
 
-        console.print(
-            f"Fetching {channel.value} releases for {variant.display_name}..."
-        )
+        is_multi_channel = variant.has_stable and variant.has_experimental
+        fetch_label = f"{channel.value} " if is_multi_channel else ""
+        console.print(f"Fetching {fetch_label}releases for {variant.display_name}...")
 
         try:
             client = GitHubClient()
@@ -237,7 +240,10 @@ class CatmanShell(cmd2.Cmd):
 
         # Version menu
         items = [f"{r.name}  ({r.tag})  {r.published_at[:10]}" for r in releases]
-        idx = select_one(items, title=f"Select {channel.value} version")
+        version_title = (
+            f"Select {channel.value} version" if is_multi_channel else "Select version"
+        )
+        idx = select_one(items, title=version_title)
         if idx is None or idx is BACK:
             return
         release = releases[idx]
@@ -333,7 +339,7 @@ class CatmanShell(cmd2.Cmd):
         for b in builds:
             label = b
             ch = self.config.get_build_channel(variant, b)
-            if ch:
+            if ch and variant.has_stable and variant.has_experimental:
                 label += f"  [{ch.value}]"
             if b == active:
                 label += "  [active]"

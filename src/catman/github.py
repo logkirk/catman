@@ -76,9 +76,9 @@ class GitHubClient:
         """Fetch stable releases. For CDDA, uses the git refs API to find stable tags."""
         if variant == GameVariant.CDDA:
             return self._get_cdda_stable_releases()
-        elif variant == GameVariant.TLG:
-            return self.get_all_game_releases(variant, max_pages=5)
-        return []
+        # TLG (all stable) and BN (filter non-prerelease)
+        releases = self.get_all_game_releases(variant, max_pages=5)
+        return [r for r in releases if r.channel == ReleaseChannel.STABLE]
 
     def _get_cdda_stable_releases(self) -> list[GameRelease]:
         """Fetch CDDA stable releases via matching refs for tags starting with '0.'."""
@@ -139,16 +139,14 @@ class GitHubClient:
 
     @staticmethod
     def _determine_channel(variant: GameVariant, release: dict) -> ReleaseChannel:
-        if variant == GameVariant.CDDA:
-            return (
-                ReleaseChannel.EXPERIMENTAL
-                if release.get("prerelease")
-                else ReleaseChannel.STABLE
-            )
-        elif variant == GameVariant.BN:
-            return ReleaseChannel.EXPERIMENTAL
-        else:  # TLG
+        if variant == GameVariant.TLG:
             return ReleaseChannel.STABLE
+        # CDDA and BN: use prerelease flag
+        return (
+            ReleaseChannel.EXPERIMENTAL
+            if release.get("prerelease")
+            else ReleaseChannel.STABLE
+        )
 
     def close(self):
         self._client.close()

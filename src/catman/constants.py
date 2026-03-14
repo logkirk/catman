@@ -31,7 +31,7 @@ class GameVariant(Enum):
 
     @property
     def has_stable(self) -> bool:
-        return self in (GameVariant.CDDA, GameVariant.TLG)
+        return self in (GameVariant.CDDA, GameVariant.BN, GameVariant.TLG)
 
     @property
     def has_experimental(self) -> bool:
