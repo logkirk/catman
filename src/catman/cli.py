@@ -2,6 +2,7 @@ import shutil
 from pathlib import Path
 
 import cmd2
+from cmd2 import with_category
 from rich.console import Console
 
 from .backup import (
@@ -25,6 +26,10 @@ from .github import GitHubClient
 from .launcher import find_most_recent_world, find_worlds, launch_game
 from .menu import BACK, confirm, select_one
 from .platform_util import find_matching_asset, get_arch, get_os, open_file_browser
+
+CMD_CAT_APPLICATION = "Application"
+CMD_CAT_GAME = "Game"
+CMD_CAT_DATA = "Data"
 
 console = Console()
 
@@ -54,16 +59,26 @@ class CatmanShell(cmd2.Cmd):
                 "shortcuts",
                 "edit",
                 "shell",
+                "set",
+                "history",
             ]
         )
 
+    @with_category(CMD_CAT_APPLICATION)
     def do_help(self, args) -> None:
+        """Show catman help."""
         if not str(args).strip():
             # noinspection PyArgumentList
             super().do_help("--verbose")
         else:
             # noinspection PyArgumentList
             super().do_help(args)
+
+    @with_category(CMD_CAT_APPLICATION)
+    def do_quit(self, args) -> bool | None:
+        """Quit catman."""
+        # noinspection PyArgumentList
+        return super().do_quit(args)
 
     def _update_prompt(self):
         v = self.config.active_variant
@@ -140,6 +155,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── variant ─────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_GAME)
     def do_variant(self, _statement):
         """Switch active game variant."""
         choices = [f"{v.short_name} - {v.display_name}" for v in GameVariant]
@@ -157,6 +173,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── status ──────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_GAME)
     def do_status(self, _statement):
         """Show current variant, channel, build, and save info."""
         v = self._variant
@@ -180,6 +197,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── download ────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_GAME)
     def do_download(self, _statement):
         """Download a game build."""
         variant = self._variant
@@ -280,6 +298,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── builds ──────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_GAME)
     def do_builds(self, _statement):
         """List and manage downloaded builds."""
         variant = self._variant
@@ -355,6 +374,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── launch ──────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_GAME)
     def do_launch(self, _statement):
         """Launch the active game build."""
         active_build = self.config.active_builds.get(self._variant.value)
@@ -387,6 +407,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── backups ─────────────────────────────────────────────────────────
 
+    @with_category(CMD_CAT_DATA)
     def do_backups(self, _statement):
         """Manage save backups."""
         while True:
@@ -455,6 +476,7 @@ class CatmanShell(cmd2.Cmd):
 
     # ── data management ───────────────────────────────────────────────
 
+    @with_category(CMD_CAT_DATA)
     def do_data(self, _statement):
         """Manage user data directory."""
         variant = self._variant
@@ -606,18 +628,22 @@ class CatmanShell(cmd2.Cmd):
                 console.print(f"[red]Installation failed: {e}[/red]")
         return None
 
+    @with_category(CMD_CAT_DATA)
     def do_mods(self, _statement):
         """Manage mods."""
         self._content_command(ContentType.MODS)
 
+    @with_category(CMD_CAT_DATA)
     def do_fonts(self, _statement):
         """Manage fonts."""
         self._content_command(ContentType.FONTS)
 
+    @with_category(CMD_CAT_DATA)
     def do_soundpacks(self, _statement):
         """Manage soundpacks."""
         self._content_command(ContentType.SOUNDPACKS)
 
+    @with_category(CMD_CAT_DATA)
     def do_tilesets(self, _statement):
         """Manage tilesets."""
         self._content_command(ContentType.TILESETS)
