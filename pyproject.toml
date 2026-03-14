@@ -4,9 +4,28 @@ build-backend = "hatchling.build"
 
 [project]
 name = "catman"
-version = "0.1.0"
+version = "0.1.1"
 description = "CLI game management tool for Cataclysm"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "MIT"
+authors = [
+    { name = "Logan Kirkland", email = "logan@logankirk.land" },
+]
+keywords = ["cataclysm", "cdda", "game", "manager", "cli"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Games/Entertainment",
+]
 dependencies = [
     "cmd2>=2.5.0",
     "simple-term-menu>=1.6.0",
@@ -14,6 +33,11 @@ dependencies = [
     "platformdirs>=4.0.0",
     "rich>=13.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/logkirk/catman"
+Repository = "https://github.com/logkirk/catman"
+Issues = "https://github.com/logkirk/catman/issues"
 
 [project.scripts]
 catman = "catman.__main__:main"
