@@ -39,5 +39,11 @@ Homepage = "https://github.com/logkirk/catman"
 Repository = "https://github.com/logkirk/catman"
 Issues = "https://github.com/logkirk/catman/issues"
 
+[project.optional-dependencies]
+test = ["pytest>=8.0"]
+
 [project.scripts]
 catman = "catman.__main__:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
