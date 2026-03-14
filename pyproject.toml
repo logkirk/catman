@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "catman"
-version = "0.1.1"
+version = "0.1.2"
 description = "CLI game management tool for Cataclysm"
 readme = "README.md"
 requires-python = ">=3.11"

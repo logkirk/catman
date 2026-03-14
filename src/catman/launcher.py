@@ -1,4 +1,7 @@
 import os
+import shlex
+import shutil
+import stat
 import subprocess
 from pathlib import Path
 
@@ -90,6 +93,48 @@ def find_most_recent_world(userdata_path: Path) -> str | None:
     return worlds[0][0].name
 
 
+def _launch_curses_new_window(
+    cmd: list[str], cwd: str, env: dict, os_name: str
+) -> None:
+    """Launch a curses binary in a new terminal window."""
+    if os_name == "macos":
+        # Write a temp shell script so we avoid AppleScript string-escaping issues.
+        # Temp paths are free of spaces/special chars, safe to embed in AppleScript.
+        lines = ["#!/bin/sh"]
+        for key in ("DYLD_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"):
+            if key in env:
+                lines.append(f"export {key}={shlex.quote(env[key])}")
+        lines.append(f"cd {shlex.quote(cwd)}")
+        lines.append(" ".join(shlex.quote(c) for c in cmd))
+        tmp = f"/tmp/catman_launch_{os.getpid()}.sh"
+        with open(tmp, "w") as f:
+            f.write("\n".join(lines) + "\n")
+        os.chmod(tmp, stat.S_IRWXU)
+        script = f'tell application "Terminal" to do script "{tmp}"'
+        subprocess.Popen(["osascript", "-e", script], stdout=subprocess.DEVNULL)
+    elif os_name == "linux":
+        terminals = [
+            ["x-terminal-emulator", "-e"],
+            ["gnome-terminal", "--"],
+            ["xterm", "-e"],
+            ["konsole", "-e"],
+            ["xfce4-terminal", "-e"],
+            ["lxterminal", "-e"],
+            ["alacritty", "-e"],
+            ["kitty"],
+        ]
+        for term_args in terminals:
+            if shutil.which(term_args[0]):
+                subprocess.Popen(term_args + cmd, cwd=cwd, env=env)
+                return
+        # Fallback: run in current terminal
+        subprocess.Popen(cmd, cwd=cwd, env=env)
+    elif os_name == "windows":
+        subprocess.Popen(["cmd", "/c", "start", "cmd", "/k"] + cmd, cwd=cwd, env=env)
+    else:
+        subprocess.Popen(cmd, cwd=cwd, env=env)
+
+
 def launch_game(
     build_path: Path,
     userdata_path: Path,
@@ -108,15 +153,22 @@ def launch_game(
         game_args.extend(["--world", world])
 
     env = os.environ.copy()
+    os_name = get_os()
 
-    if get_os() == "macos":
+    if os_name == "macos":
         # Set framework/library paths for SDL dependencies
         exe_dir = str(exe.parent)
         env["DYLD_LIBRARY_PATH"] = exe_dir
         env["DYLD_FRAMEWORK_PATH"] = exe_dir
 
-    subprocess.Popen(
-        [str(exe)] + game_args,
-        cwd=str(exe.parent),
-        env=env,
-    )
+    cmd = [str(exe)] + game_args
+
+    # Detect actual build type from the binary name. The `tiles` param is only
+    # a hint for find_executable — its fallback can return a curses binary even
+    # when tiles=True, so re-check here before deciding how to launch.
+    is_curses = "tiles" not in exe.name.lower()
+
+    if is_curses:
+        _launch_curses_new_window(cmd, str(exe.parent), env, os_name)
+    else:
+        subprocess.Popen(cmd, cwd=str(exe.parent), env=env)
