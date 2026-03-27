@@ -73,7 +73,7 @@ def install_from_catalog(item: ContentItem, userdata_path: Path) -> str:
         if item.is_github_repo:
             archive = _download_from_github(item.url, tmpdir)
         else:
-            filename = item.url.split("/")[-1]
+            filename = item.url.split("/")[-1].split("?")[0]
             archive = tmpdir / filename
             download_file(item.url, archive)
 
