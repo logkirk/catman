@@ -35,7 +35,8 @@ def download_file(url: str, dest: Path) -> Path:
 def extract_archive(archive: Path, dest: Path) -> Path:
     """Extract an archive to dest. Returns path to the extracted content root."""
     dest.mkdir(parents=True, exist_ok=True)
-    name = archive.name.lower()
+    # Strip query string from filename (e.g. "file.zip?dl=1" → "file.zip")
+    name = archive.name.lower().split("?")[0]
 
     if name.endswith((".tar.gz", ".tgz")):
         _extract_tar(archive, dest, "r:gz")
