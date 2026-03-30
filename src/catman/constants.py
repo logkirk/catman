@@ -127,7 +127,7 @@ CONTENT_CATALOG: list[ContentItem] = [
     ContentItem(
         name="ChestHole",
         description="ChestHole soundpack",
-        url="https://web.archive.org/web/2/https://chezzo.com/cataclysm/ChestHoleSoundPack.zip",
+        url="https://web.archive.org/web/20240122133501if_/https://chezzo.com/cdda/ChestHoleSoundSet.zip",
         content_type=ContentType.SOUNDPACKS,
         variants=[GameVariant.CDDA, GameVariant.TLG],
         is_github_repo=False,
@@ -135,7 +135,7 @@ CONTENT_CATALOG: list[ContentItem] = [
     ContentItem(
         name="ChestHole (CC-licensed)",
         description="ChestHole CC-licensed soundpack",
-        url="https://web.archive.org/web/2/https://chezzo.com/cataclysm/ChestHoleCCSoundPack.zip",
+        url="https://web.archive.org/web/20210401095201if_/http://chezzo.com/cdda/ChestHoleCCSoundset.zip",
         content_type=ContentType.SOUNDPACKS,
         variants=[GameVariant.CDDA, GameVariant.TLG],
         is_github_repo=False,
@@ -143,7 +143,7 @@ CONTENT_CATALOG: list[ContentItem] = [
     ContentItem(
         name="ChestHole (Old Timey)",
         description="ChestHole Old Timey soundpack",
-        url="https://web.archive.org/web/2/https://chezzo.com/cataclysm/ChestOldTimeySoundPack.zip",
+        url="https://web.archive.org/web/20210401095200if_/http://chezzo.com/cdda/ChestOldTimeyLessismore.zip",
         content_type=ContentType.SOUNDPACKS,
         variants=[GameVariant.CDDA, GameVariant.TLG],
         is_github_repo=False,
@@ -167,7 +167,7 @@ CONTENT_CATALOG: list[ContentItem] = [
     ContentItem(
         name="RRFSounds",
         description="RRF community soundpack",
-        url="https://www.dropbox.com/s/9tfsd8g8apdgyxo/RRFSounds.zip?dl=1",
+        url="https://www.dropbox.com/s/d8dfmb2facvkdh6/RRFSounds.zip?dl=1",
         content_type=ContentType.SOUNDPACKS,
         variants=[GameVariant.CDDA, GameVariant.TLG],
         is_github_repo=False,
