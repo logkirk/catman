@@ -23,11 +23,10 @@ def get_arch() -> str:
 def match_asset(name: str, os_name: str, arch: str, tiles: bool = True) -> bool:
     """Check if a release asset name matches the given platform.
 
-    Handles naming from all four variants:
+    Handles naming from all three variants:
       CDDA: "with-graphics"/"terminal-only", "osx", "universal"
       BN:   "tiles"/"curses", "osx", "arm"/"x64"
       TLG:  "tiles"/"curses", "osx", "universal"
-      AOL:  no tiles/curses distinction, "macos"/"linux"/"windows", no arch marker
     """
     n = name.lower()
 

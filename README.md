@@ -6,7 +6,7 @@ Small, no-nonsense CLI launcher and game management tool for Cataclysm.
 
 ## Features
 
-- Supports [Cataclysm: Dark Days Ahead](https://github.com/CleverRaven/Cataclysm-DDA), [Cataclysm: Bright Nights](https://github.com/cataclysmbn/Cataclysm-BN), [Cataclysm: The Last Generation](https://github.com/Cataclysm-TLG/Cataclysm-TLG), and [Cataclysm: Arsenic and Old Lace](https://github.com/josihosi/Cataclysm-AOL).
+- Supports [Cataclysm: Dark Days Ahead](https://github.com/CleverRaven/Cataclysm-DDA), [Cataclysm: Bright Nights](https://github.com/cataclysmbn/Cataclysm-BN), and [Cataclysm: The Last Generation](https://github.com/Cataclysm-TLG/Cataclysm-TLG).
 - macOS support
 - Download and launch games
 - Manage tilesets, soundpacks, mods, and fonts

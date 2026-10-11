@@ -271,32 +271,3 @@ class TestFindMatchingAsset:
         result = find_matching_asset(assets, "linux", "x64")
         assert result is not None
         assert result.name == "cdda-linux-tiles-x64.zip"
-
-
-# ---------------------------------------------------------------------------
-# match_asset — AOL assets (no tiles/curses, no arch marker)
-# ---------------------------------------------------------------------------
-
-
-class TestMatchAssetAOL:
-    def test_aol_linux_matches_linux(self):
-        assert match_asset("caol_cdda-0-h_2026-03-29-1556_linux.tar.gz", "linux", "x64") is True
-
-    def test_aol_macos_matches_macos(self):
-        assert match_asset("caol_cdda-0-h_2026-03-29-1556_macos.dmg", "macos", "x64") is True
-
-    def test_aol_windows_matches_windows(self):
-        assert match_asset("caol_cdda-0-h_2026-03-29-1556_windows.zip", "windows", "x64") is True
-
-    def test_aol_linux_rejected_for_macos(self):
-        assert match_asset("caol_cdda-0-h_2026-03-29-1556_linux.tar.gz", "macos", "x64") is False
-
-    def test_aol_macos_rejected_for_linux(self):
-        assert match_asset("caol_cdda-0-h_2026-03-29-1556_macos.dmg", "linux", "x64") is False
-
-    def test_aol_macos_arm64_fallback(self):
-        # AOL has no arch marker — arm64 fails, fallback to x64 succeeds
-        assets = [make_asset("caol_cdda-0-h_2026-03-29-1556_macos.dmg")]
-        result = find_matching_asset(assets, "macos", "arm64")
-        assert result is not None
-        assert result.name == "caol_cdda-0-h_2026-03-29-1556_macos.dmg"
