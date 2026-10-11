@@ -16,31 +16,37 @@ class TestGameVariant:
         assert GameVariant.CDDA.display_name == "Cataclysm: Dark Days Ahead"
         assert GameVariant.BN.display_name == "Cataclysm: Bright Nights"
         assert GameVariant.TLG.display_name == "Cataclysm: The Last Generation"
+        assert GameVariant.AOL.display_name == "Cataclysm: Arsenic and Old Lace"
 
     def test_short_names(self):
         assert GameVariant.CDDA.short_name == "CDDA"
         assert GameVariant.BN.short_name == "BN"
         assert GameVariant.TLG.short_name == "TLG"
+        assert GameVariant.AOL.short_name == "AOL"
 
     def test_github_repos(self):
         assert GameVariant.CDDA.github_repo == "CleverRaven/Cataclysm-DDA"
         assert GameVariant.BN.github_repo == "cataclysmbn/Cataclysm-BN"
         assert GameVariant.TLG.github_repo == "Cataclysm-TLG/Cataclysm-TLG"
+        assert GameVariant.AOL.github_repo == "josihosi/Cataclysm-AOL"
 
     def test_has_stable(self):
         assert GameVariant.CDDA.has_stable is True
         assert GameVariant.BN.has_stable is True
         assert GameVariant.TLG.has_stable is True
+        assert GameVariant.AOL.has_stable is True
 
     def test_has_experimental(self):
         assert GameVariant.CDDA.has_experimental is True
         assert GameVariant.BN.has_experimental is True
         assert GameVariant.TLG.has_experimental is False
+        assert GameVariant.AOL.has_experimental is True
 
     def test_values(self):
         assert GameVariant.CDDA.value == "cdda"
         assert GameVariant.BN.value == "bn"
         assert GameVariant.TLG.value == "tlg"
+        assert GameVariant.AOL.value == "aol"
 
 
 class TestContentType:

@@ -6,6 +6,7 @@ class GameVariant(Enum):
     CDDA = "cdda"
     BN = "bn"
     TLG = "tlg"
+    AOL = "aol"
 
     @property
     def display_name(self) -> str:
@@ -13,6 +14,7 @@ class GameVariant(Enum):
             GameVariant.CDDA: "Cataclysm: Dark Days Ahead",
             GameVariant.BN: "Cataclysm: Bright Nights",
             GameVariant.TLG: "Cataclysm: The Last Generation",
+            GameVariant.AOL: "Cataclysm: Arsenic and Old Lace",
         }
         return names[self]
 
@@ -26,16 +28,17 @@ class GameVariant(Enum):
             GameVariant.CDDA: "CleverRaven/Cataclysm-DDA",
             GameVariant.BN: "cataclysmbn/Cataclysm-BN",
             GameVariant.TLG: "Cataclysm-TLG/Cataclysm-TLG",
+            GameVariant.AOL: "josihosi/Cataclysm-AOL",
         }
         return repos[self]
 
     @property
     def has_stable(self) -> bool:
-        return self in (GameVariant.CDDA, GameVariant.BN, GameVariant.TLG)
+        return self in (GameVariant.CDDA, GameVariant.BN, GameVariant.TLG, GameVariant.AOL)
 
     @property
     def has_experimental(self) -> bool:
-        return self in (GameVariant.CDDA, GameVariant.BN)
+        return self in (GameVariant.CDDA, GameVariant.BN, GameVariant.AOL)
 
 
 class ReleaseChannel(Enum):
